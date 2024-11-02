@@ -146,7 +146,7 @@ Wybrany model z pkt.2 - ARMA(0,1).
 Wyznaczamy najlepszy model dla logarytmicznych cen:
 ```{r}
 model_2 <- auto.arima(train$Zamkniecie_log)
-summary(model_2)
+model_2
 ```
 Wybieramy model ARIMA(0,1,1).
 
