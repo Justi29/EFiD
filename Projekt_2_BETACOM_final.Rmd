@@ -366,17 +366,23 @@ paged_table(ceny_bootstrap_results)
 Badanie z punktów 3-5 powtórzyć przy założeniu występowania efektu ARCH, tzn. dla odpowiedniego modelu ARMA-GARCH. Przeprowadzić też test występowania efektu ARCH.
 
 #### Test ARCH
-Reszty z modelu logarytmicznych stóp zwrotu
+
+1. Reszty z modelu logarytmicznych stóp zwrotu
+
 ```{r}
 reszty_st_zw <- residuals(stopy_zwr_model)
 ArchTest(reszty_st_zw, lags = 1)
 ```
-Reszty z modelu logarytmicznych cen
+
+2. Reszty z modelu logarytmicznych cen
+
 ```{r}
 reszty_log <- residuals(ceny_log_model)
 ArchTest(reszty_log, lags = 1)
 ```
-W obu przypadkach p-value są większe przyjęty poziom istotności 0.05, dlatego odrzucamy H0, a to oznacza, że występują efekty ARCH.
+W obu przypadkach p-value są większe niż przyjęty poziom istotności 0.05, dlatego odrzucamy H0, a to oznacza, że dla obu występują efekty ARCH.
+
+W kolejnych krokach tworzymy dwa modele ARMA-GARCH dla logarytmicznych stóp zwrotu oraz logarytmicznych cen. Wykorzystujemy do tego modele ARMA(0,1) i GARCH(1,1). Następnie na ich podstawie zgodnie z podpunktem 3 wyznaczamy predykcje oraz przedziały ufności dla logarytmicznych stóp zwrotu, logarytmicznych cen oraz cen.
 
 #### Badanie z pkt. 3
 ```{r}
@@ -401,7 +407,8 @@ spec2 <- ugarchspec(
 fit2 <- ugarchfit(spec = spec2, data = train$Zamkniecie_log)
 ```
 
-Predykcje oraz wyznaczone przedziały ufności:
+1. Predykcje oraz wyznaczone przedziały ufności:
+
 ```{r}
 # Prognoza logarytmicznych stóp zwrotu
 prognoza_stop_zwr <- ugarchforecast(fit, n.ahead = 4)
@@ -453,7 +460,8 @@ for (i in 1:4){
 paged_table(predictions_pkt6)
 ```
 
-Porównanie rzeczywistych wartości z predykcjami:
+2. Porównanie rzeczywistych wartości z predykcjami:
+
 ```{r}
 # Porównanie rzeczywistych wartości z predykcjami
 result_df_pkt6 <- as.data.frame(cbind(test$Zamkniecie, predictions_pkt6$Zamkniecie_pred, test$Zamkniecie_log, predictions_pkt6$Zamkniecie_log_pred, test$Stopa_zwrotu_log, predictions_pkt6$Stopa_zwrotu_log_pred))
@@ -463,8 +471,13 @@ colnames(result_df_pkt6) <- c("Zamkniecie","Zamkniecie_pred","Zamkniecie_log","Z
 paged_table(result_df_pkt6)
 ```
 
+Wartości w kolumnach 'Zamknięcie' i 'Zamknięcie_pred' (ceny zwykłe) są do siebie zbliżone. Jedynie predykcja T+2 różni się prawie o 0.2. Pozostałe predykcje nie przekraczają 0.1.
+Podobnie, wartości w kolumnach 'Zamknięcie_log' i 'Zamknięcie_log_pred' (logarytmiczne ceny) są bardzo zbliżone, co wskazuje, że model dość dobrze odwzorowuje rzeczywiste wartości.
+Z kolei wartości rzeczywiste ('Stopa_zwrotu_log') i prognozowane ('Stopa_zwrotu_log_pred') różnią się bardziej znacząco niż w poprzednich przypadkach. Model przewiduje jednakową wartość logarytmicznej stopy zwrotu w trzech ostatnich predykcjach, gdzie przewidywana wartość wynosi 0.0004695031. Widać również, że przewidywane wartości zmieniają się zarówno dodatnio, jak i ujemnie.
+
 
 #### Badanie z pkt. 4 - Monte Carlo
+
 ```{r}
 reszty_fit2 <- residuals(fit2)
 mu <- 0
@@ -511,12 +524,14 @@ ceny_results <- data.frame(
 )
 ```
 
-Prognozy logarytmów cen:
+1. Prognozy logarytmów cen:
+
 ```{r}
 paged_table(log_ceny_results)
 ```
 
-Prognozy cen
+2. Prognozy cen
+
 ```{r}
 paged_table(ceny_results)
 ```
@@ -540,7 +555,8 @@ for (j in 1:n_bootstrap) {
   }
 }
 
-prognozy_ceny_bootstrap <- exp(prognozy_log_bootstrap)
+sigma <- sd(reszty_fit2)
+prognozy_ceny_bootstrap <- exp(prognozy_log_bootstrap  + (sigma^2 / 2))
 
 log_forecast_mean_bootstrap <- apply(prognozy_log_bootstrap, 2, mean)
 log_ci_lower_bootstrap <- apply(prognozy_log_bootstrap, 2, function(x) quantile(x, probs = 0.025))
@@ -565,17 +581,22 @@ ceny_bootstrap_results <- data.frame(
 )
 ```
 
-Prognozy logarytmów cen
+1. Bootstrapowe prognozy logarytmów cen
+
 ```{r}
 paged_table(log_ceny_bootstrap_results)
 ```
 
-Prognozy cen
+2. Bootstrapowe prognozy cen
+
 ```{r}
 paged_table(ceny_bootstrap_results)
 ```
 
 #### Porównanie wyników z poprzednimi prognozami logarytmicznych cen i cen
+
+1. Porównanie logarytmicznych cen
+
 ```{r}
 final_comparison_log_ceny <- as.data.frame(cbind(
   test$Zamkniecie_log, 
@@ -589,6 +610,13 @@ colnames(final_comparison_log_ceny) <- c("Rzeczywiste_ceny_log","Ceny_log_pred_3
 paged_table(final_comparison_log_ceny)
 ```
 
+Wartości prognozowane są bliskie rzeczywistym wartościom logarytmicznym cen, jednakże każda z prognoz (3, 4, 5) wykazuje pewne odchylenia w stosunku do rzeczywistych cen. 'Ceny_log_pred_3' wydaje się najbliższa rzeczywistej wartości dla pierwszej predykcji, gdzie różnica wynosi około 0.003. Jednakże w kolejnych wierszach te różnice się zwiększają. 'Ceny_log_pred_4' i 'Ceny_log_pred_5' są mniej oddalone od rzeczywistych cen logarytmicznych. Jedynie w pierwszej prognozie różnice są gorsze niż w kolumnie 'Ceny_log_pred_3'.
+
+Podsumowując, prognozy wyznaczone za pomocą metody Monte Carlo - 'Ceny_log_pred_4', wydają się być najbliższe rzeczywistości. Niemniej jednak, różnice są na tyle małe, że wszystkie trzy poziomy prognoz mają podobną jakość przewidywania.
+
+
+2. Porównanie cen
+
 ```{r}
 final_comparison_ceny <- as.data.frame(cbind(
   test$Zamkniecie, 
@@ -601,6 +629,8 @@ colnames(final_comparison_ceny) <- c("Rzeczywiste_ceny","Ceny_pred_3","Ceny_pred
 
 paged_table(final_comparison_ceny)
 ```
+Model prognozy 'Ceny_pred_4' wydaje się być najbardziej zbliżony w odniesieniu do rzeczywistych cen. Niemniej jedank, przewidywane wartości w dalszym ciągu nie są w pełni zadowalające. 'Ceny_pred_3' są bliskie rzeczywistym wartościom, ale widoczna jest tendencja do zawyżania prognoz. 'Ceny_pred_5' są podobne do prognoz 'Ceny_pred_4'. Są w miarę zbliżone do rzeczywistych wartości. Jedynie druga predykcja odbiega od rzeczywistej wartości o ok. 0.12, natomiast pozostałe oscylują w granicach błędu 0.008-0.04.
+
 
 Źródła:
 https://www.investopedia.com/terms/m/montecarlosimulation.asp
