@@ -146,7 +146,7 @@ Wybrany model z pkt.2 - ARMA(0,1).
 Wyznaczamy najlepszy model dla logarytmicznych cen:
 ```{r}
 model_2 <- auto.arima(train$Zamkniecie_log)
-model_2
+summary(model_2)
 ```
 Wybieramy model ARIMA(0,1,1).
 
@@ -159,7 +159,7 @@ Zakładamy rozkład normalny dla logarytmicznych stóp zwrotu, czyli logarytmicz
 
 #### Predykcje logarytmicznych stóp zwrotu
 ```{r}
-forecast_values <- forecast(stopy_zwr_model, h=4, level=95)
+forecast_values <- forecast(stopy_zwr_model, h=4)
 predict <- as.data.frame(forecast_values)
 real_values <- tail(test$Stopa_zwrotu_log, 4)
 
@@ -175,7 +175,7 @@ paged_table(comparison)
 
 #### Predykcje logarytmicznych cen
 ```{r}
-forecast_values <- forecast(ceny_log_model, h=4, level=95)
+forecast_values <- forecast(ceny_log_model, h=4)
 predict_2 <- as.data.frame(forecast_values)
 real_values <- tail(test$Zamkniecie_log, 4)
 
@@ -196,23 +196,12 @@ predictions <- data.frame(
   Lower_cena = NA,
   Upper_cena = NA,
   Zamkniecie_log_pred = predict_2$`Point Forecast`,
-  Lower_log_cena = NA,
-  Upper_log_cena = NA,
+  Lower_log_cena = predict_2$`Lo 95`,
+  Upper_log_cena = predict_2$`Hi 95`,
   Stopa_zwrotu_log_pred = predict$`Point Forecast`,
   Lower_st_zw = predict$`Lo 95`,
   Upper_st_zw = predict$`Hi 95`
 )
-
-# Old version
-# Ostatnia znana cena log
-# cena_log <- train[nrow(train),3]
-#
-# Predykcja logarytmicznych cen
-# for (i in 1:4){
-#   stopa_zwrotu <- predictions[i,"Stopa_zwrotu_log_pred"]
-#   predictions[i,"Zamkniecie_log_pred"] <- cena_log + stopa_zwrotu
-#   cena_log <- predictions[i,"Zamkniecie_log_pred"]
-# }
 
 
 # Predykcja cen
@@ -223,26 +212,22 @@ for (i in 1:4){
   colnames(temp_df) <- c("Zamkniecie_log_combined")
   
   # Odchylenie standardowe
-  sd <- sd(temp_df$Zamkniecie_log_combined)
+  sigma <- sd(temp_df$Zamkniecie_log_combined)
+  sigma2 <- sigma^2
   
   # Prognozowana cena
-  predictions[i,"Zamkniecie_pred"] <- exp(mi+sd/2)
+  predictions[i,"Zamkniecie_pred"] <- exp(mi+sigma2/2)
   
-  # Obliczanie przedziałów ufności dla logarytmicznych cen
   z_value <- qnorm(0.975)
-  predictions[i, "Lower_log_cena"] <- mi - z_value * (sd / sqrt(nrow(temp_df)))
-  predictions[i, "Upper_log_cena"] <- mi + z_value * (sd / sqrt(nrow(temp_df)))
-  
-  
   # Obliczanie przedziałów ufności dla cen
-  mi_2 <- predictions[i,"Zamkniecie_pred"]
   temp_df_2 <- as.data.frame(c(train$Zamkniecie, predictions$Zamkniecie_pred[1:i]))
   colnames(temp_df_2) <- c("Zamkniecie_combined")
 
-  sd_2 <- sd(temp_df_2$Zamkniecie_combined)
+  s <- sd(temp_df_2$Zamkniecie_combined)
+  s2 <-s^2
   
-  predictions[i, "Lower_cena"] <- mi_2 - z_value * (sd_2 / sqrt(nrow(temp_df_2)))
-  predictions[i, "Upper_cena"] <- mi_2 + z_value * (sd_2 / sqrt(nrow(temp_df_2)))
+  predictions[i, "Lower_cena"] <- exp(mi - z_value * sigma + 0.5 * s2)
+  predictions[i, "Upper_cena"] <- exp(mi + z_value * sigma + 0.5 * s2)
 }
 
 paged_table(predictions)
@@ -416,16 +401,17 @@ spec2 <- ugarchspec(
 fit2 <- ugarchfit(spec = spec2, data = train$Zamkniecie_log)
 ```
 
+Predykcje oraz wyznaczone przedziały ufności:
 ```{r}
 # Prognoza logarytmicznych stóp zwrotu
 prognoza_stop_zwr <- ugarchforecast(fit, n.ahead = 4)
-prognozy_stop_zwr <- as.data.frame(fitted(prognoza_stop_zwr))
-colnames(prognozy_stop_zwr) <- c("Prognoza_Stopy_Zwrotu")
+prognozy_stop_zwr <- data.frame(Prognoza_Stopy_Zwrotu=prognoza_stop_zwr@forecast$seriesFor,Wariancja_Stopy_Zwrotu=prognoza_stop_zwr@forecast$sigmaFor)
+colnames(prognozy_stop_zwr) <- c("Prognoza_Stopy_Zwrotu", "Wariancja_Stopy_Zwrotu")
 
 # Prognoza logarytmicznych cen
 prognoza_log_cena <- ugarchforecast(fit2, n.ahead = 4)
-prognoza_log_cena <- as.data.frame(fitted(prognoza_log_cena))
-colnames(prognoza_log_cena) <- c("Prognoza_Log_Cena")
+prognoza_log_cena <- data.frame(Prognoza_Log_Cena=prognoza_log_cena@forecast$seriesFor,Wariancja_Log=prognoza_log_cena@forecast$sigmaFor)
+colnames(prognoza_log_cena) <- c("Prognoza_Log_Cena","Wariancja_Log")
 
 predictions_pkt6 <- data.frame(
   Zamkniecie_pred = NA,
@@ -440,48 +426,34 @@ predictions_pkt6 <- data.frame(
 )
 
 for (i in 1:4){
-  mi <- predictions_pkt6[i,"Zamkniecie_log_pred"]
-  
-  temp_df <- as.data.frame(c(train$Zamkniecie_log, predictions_pkt6$Zamkniecie_log[1:i]))
-  colnames(temp_df) <- c("Zamkniecie_log_combined")
-  
-  # Odchylenie standardowe
-  sd <- sd(temp_df$Zamkniecie_log_combined)
+  mu <- predictions_pkt6[i,"Zamkniecie_log_pred"]
+  sigma2 <- prognoza_log_cena[i, "Wariancja_Log"]
+  sigma <- sqrt(sigma2)
   
   # Prognozowana cena
-  predictions_pkt6[i,"Zamkniecie_pred"] <- exp(mi+sd/2)
+  predictions_pkt6[i,"Zamkniecie_pred"] <- exp(mu+0.5*sigma2)
   
-  # Obliczanie przedziałów ufności dla logarytmicznych cen
   z_value <- qnorm(0.975)
-  predictions_pkt6[i, "Lower_log_cena"] <- mi - z_value * (sd / sqrt(nrow(temp_df)))
-  predictions_pkt6[i, "Upper_log_cena"] <- mi + z_value * (sd / sqrt(nrow(temp_df)))
-  
+  # Obliczanie przedziałów ufności dla logarytmicznych cen
+  predictions_pkt6[i, "Lower_log_cena"] <- mu - z_value * sqrt(sigma2)
+  predictions_pkt6[i, "Upper_log_cena"] <- mu + z_value * sqrt(sigma2)
   
   # Obliczanie przedziałów ufności dla cen
-  mi_2 <- predictions_pkt6[i,"Zamkniecie_pred"]
-  temp_df_2 <- as.data.frame(c(train$Zamkniecie, predictions_pkt6$Zamkniecie_pred[1:i]))
-  colnames(temp_df_2) <- c("Zamkniecie_combined")
-
-  sd_2 <- sd(temp_df_2$Zamkniecie_combined)
-  
-  predictions_pkt6[i, "Lower_cena"] <- mi_2 - z_value * (sd_2 / sqrt(nrow(temp_df_2)))
-  predictions_pkt6[i, "Upper_cena"] <- mi_2 + z_value * (sd_2 / sqrt(nrow(temp_df_2)))
-  
+  predictions_pkt6[i, "Lower_cena"] <- exp(mu - z_value * sigma + 0.5 * sigma2)
+  predictions_pkt6[i, "Upper_cena"] <- exp(mu + z_value * sigma + 0.5 * sigma2)
   
   # Obliczanie przedziałów ufności dla logarytmicznych stóp zwrotu
-  mi_3 <- predictions_pkt6[i,"Stopa_zwrotu_log_pred"]
-  temp_df_3 <- as.data.frame(c(train$Stopa_zwrotu_log, predictions_pkt6$Stopa_zwrotu_log_pred[1:i]))
-  colnames(temp_df_3) <- c("Stopa_zwrotu_combined")
-
-  sd_3 <- sd(temp_df_3$Stopa_zwrotu_combined)
+  mu_2 <- predictions_pkt6[i,"Stopa_zwrotu_log_pred"]
+  s2 <- prognozy_stop_zwr[i, "Wariancja_Stopy_Zwrotu"]
   
-  predictions_pkt6[i, "Lower_st_zw"] <- mi_3 - z_value * (sd_3 / sqrt(nrow(temp_df_3)))
-  predictions_pkt6[i, "Upper_st_zw"] <- mi_3 + z_value * (sd_3 / sqrt(nrow(temp_df_3)))
+  predictions_pkt6[i, "Lower_st_zw"] <- mu_2 - z_value * sqrt(s2)
+  predictions_pkt6[i, "Upper_st_zw"] <- mu_2 + z_value * sqrt(s2)
 }
 
 paged_table(predictions_pkt6)
 ```
 
+Porównanie rzeczywistych wartości z predykcjami:
 ```{r}
 # Porównanie rzeczywistych wartości z predykcjami
 result_df_pkt6 <- as.data.frame(cbind(test$Zamkniecie, predictions_pkt6$Zamkniecie_pred, test$Zamkniecie_log, predictions_pkt6$Zamkniecie_log_pred, test$Stopa_zwrotu_log, predictions_pkt6$Stopa_zwrotu_log_pred))
@@ -539,12 +511,12 @@ ceny_results <- data.frame(
 )
 ```
 
-#### Prognozy logarytmów cen
+Prognozy logarytmów cen:
 ```{r}
 paged_table(log_ceny_results)
 ```
 
-#### Prognozy cen
+Prognozy cen
 ```{r}
 paged_table(ceny_results)
 ```
@@ -593,17 +565,42 @@ ceny_bootstrap_results <- data.frame(
 )
 ```
 
-#### Prognozy logarytmów cen
+Prognozy logarytmów cen
 ```{r}
 paged_table(log_ceny_bootstrap_results)
 ```
 
-#### Prognozy cen
+Prognozy cen
 ```{r}
 paged_table(ceny_bootstrap_results)
 ```
 
+#### Porównanie wyników z poprzednimi prognozami logarytmicznych cen i cen
+```{r}
+final_comparison_log_ceny <- as.data.frame(cbind(
+  test$Zamkniecie_log, 
+  predictions_pkt6$Zamkniecie_log_pred,
+  log_ceny_results$Srednia_Log_Ceny,
+  log_ceny_bootstrap_results$Srednia_Log_Ceny
+  ))
 
+colnames(final_comparison_log_ceny) <- c("Rzeczywiste_ceny_log","Ceny_log_pred_3","Ceny_log_pred_4","Ceny_log_pred_5")
+
+paged_table(final_comparison_log_ceny)
+```
+
+```{r}
+final_comparison_ceny <- as.data.frame(cbind(
+  test$Zamkniecie, 
+  predictions_pkt6$Zamkniecie_pred,
+  ceny_results$Srednia_Ceny,
+  ceny_bootstrap_results$Srednia_Ceny
+  ))
+
+colnames(final_comparison_ceny) <- c("Rzeczywiste_ceny","Ceny_pred_3","Ceny_pred_4","Ceny_pred_5")
+
+paged_table(final_comparison_ceny)
+```
 
 Źródła:
 https://www.investopedia.com/terms/m/montecarlosimulation.asp
