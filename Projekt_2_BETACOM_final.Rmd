@@ -18,9 +18,12 @@ library(rugarch)
 ```
 
 ## Opis badania
-Dane ze stooq, nie bylo naszego numerku spolki, dlatego wzielysmy z ostatnich 20 spolek.
 
-## Dane BETACOM od 1 września 2023 do 4 października 2024
+
+## BETACOM 
+Dane wykorzystane w projekcie zostały pobrane ze strony *stooq.pl*. Obserwacje dotyczą spółki BETACOM, która działa w branży IT, tworząc oprogramowanie na zamówinie oraz integrując systemy informatyczne.
+Dane pochodzą z okresu od 1 od 1 września 2023 do 4 października 2024.
+Spółka została wybrana w sposób losowy, gdyż 
 
 ```{r}
 dane <- read.csv2("bcm_d.csv", sep = ",", dec = ".", header = T)
@@ -160,7 +163,7 @@ Zakładamy rozkład normalny dla logarytmicznych stóp zwrotu, czyli logarytmicz
 
 #### Predykcje logarytmicznych stóp zwrotu
 ```{r}
-forecast_values <- forecast(stopy_zwr_model, h=4, level=95)
+forecast_values <- forecast(stopy_zwr_model, h=4)
 predict <- as.data.frame(forecast_values)
 real_values <- tail(test$Stopa_zwrotu_log, 4)
 
@@ -177,7 +180,7 @@ paged_table(comparison)
 
 #### Predykcje logarytmicznych cen
 ```{r}
-forecast_values <- forecast(ceny_log_model, h=4, level=95)
+forecast_values <- forecast(ceny_log_model, h=4)
 predict_2 <- as.data.frame(forecast_values)
 real_values <- tail(test$Zamkniecie_log, 4)
 
@@ -198,23 +201,12 @@ predictions <- data.frame(
   Lower_cena = NA,
   Upper_cena = NA,
   Zamkniecie_log_pred = predict_2$`Point Forecast`,
-  Lower_log_cena = NA,
-  Upper_log_cena = NA,
+  Lower_log_cena = predict_2$`Lo 95`,
+  Upper_log_cena = predict_2$`Hi 95`,
   Stopa_zwrotu_log_pred = predict$`Point Forecast`,
   Lower_st_zw = predict$`Lo 95`,
   Upper_st_zw = predict$`Hi 95`
 )
-
-# Old version
-# Ostatnia znana cena log
-# cena_log <- train[nrow(train),3]
-#
-# Predykcja logarytmicznych cen
-# for (i in 1:4){
-#   stopa_zwrotu <- predictions[i,"Stopa_zwrotu_log_pred"]
-#   predictions[i,"Zamkniecie_log_pred"] <- cena_log + stopa_zwrotu
-#   cena_log <- predictions[i,"Zamkniecie_log_pred"]
-# }
 
 
 # Predykcja cen
@@ -225,26 +217,22 @@ for (i in 1:4){
   colnames(temp_df) <- c("Zamkniecie_log_combined")
   
   # Odchylenie standardowe
-  sd <- sd(temp_df$Zamkniecie_log_combined)
+  sigma <- sd(temp_df$Zamkniecie_log_combined)
+  sigma2 <- sigma^2
   
   # Prognozowana cena
-  predictions[i,"Zamkniecie_pred"] <- exp(mi+sd/2)
+  predictions[i,"Zamkniecie_pred"] <- exp(mi+sigma2/2)
   
-  # Obliczanie przedziałów ufności dla logarytmicznych cen
   z_value <- qnorm(0.975)
-  predictions[i, "Lower_log_cena"] <- mi - z_value * (sd / sqrt(nrow(temp_df)))
-  predictions[i, "Upper_log_cena"] <- mi + z_value * (sd / sqrt(nrow(temp_df)))
-  
-  
   # Obliczanie przedziałów ufności dla cen
-  mi_2 <- predictions[i,"Zamkniecie_pred"]
   temp_df_2 <- as.data.frame(c(train$Zamkniecie, predictions$Zamkniecie_pred[1:i]))
   colnames(temp_df_2) <- c("Zamkniecie_combined")
 
-  sd_2 <- sd(temp_df_2$Zamkniecie_combined)
+  s <- sd(temp_df_2$Zamkniecie_combined)
+  s2 <-s^2
   
-  predictions[i, "Lower_cena"] <- mi_2 - z_value * (sd_2 / sqrt(nrow(temp_df_2)))
-  predictions[i, "Upper_cena"] <- mi_2 + z_value * (sd_2 / sqrt(nrow(temp_df_2)))
+  predictions[i, "Lower_cena"] <- exp(mi - z_value * sigma + 0.5 * s2)
+  predictions[i, "Upper_cena"] <- exp(mi + z_value * sigma + 0.5 * s2)
 }
 
 paged_table(predictions)
@@ -383,17 +371,23 @@ paged_table(ceny_bootstrap_results)
 Badanie z punktów 3-5 powtórzyć przy założeniu występowania efektu ARCH, tzn. dla odpowiedniego modelu ARMA-GARCH. Przeprowadzić też test występowania efektu ARCH.
 
 #### Test ARCH
-Reszty z modelu logarytmicznych stóp zwrotu
+
+1. Reszty z modelu logarytmicznych stóp zwrotu
+
 ```{r}
 reszty_st_zw <- residuals(stopy_zwr_model)
 ArchTest(reszty_st_zw, lags = 1)
 ```
-Reszty z modelu logarytmicznych cen
+
+2. Reszty z modelu logarytmicznych cen
+
 ```{r}
 reszty_log <- residuals(ceny_log_model)
 ArchTest(reszty_log, lags = 1)
 ```
-W obu przypadkach p-value są większe przyjęty poziom istotności 0.05, dlatego odrzucamy H0, a to oznacza, że występują efekty ARCH.
+W obu przypadkach p-value są większe niż przyjęty poziom istotności 0.05, dlatego odrzucamy H0, a to oznacza, że dla obu występują efekty ARCH.
+
+W kolejnych krokach tworzymy dwa modele ARMA-GARCH dla logarytmicznych stóp zwrotu oraz logarytmicznych cen. Wykorzystujemy do tego modele ARMA(0,1) i GARCH(1,1). Następnie na ich podstawie zgodnie z podpunktem 3 wyznaczamy predykcje oraz przedziały ufności dla logarytmicznych stóp zwrotu, logarytmicznych cen oraz cen.
 
 #### Badanie z pkt. 3
 ```{r}
@@ -418,16 +412,18 @@ spec2 <- ugarchspec(
 fit2 <- ugarchfit(spec = spec2, data = train$Zamkniecie_log)
 ```
 
+1. Predykcje oraz wyznaczone przedziały ufności:
+
 ```{r}
 # Prognoza logarytmicznych stóp zwrotu
 prognoza_stop_zwr <- ugarchforecast(fit, n.ahead = 4)
-prognozy_stop_zwr <- as.data.frame(fitted(prognoza_stop_zwr))
-colnames(prognozy_stop_zwr) <- c("Prognoza_Stopy_Zwrotu")
+prognozy_stop_zwr <- data.frame(Prognoza_Stopy_Zwrotu=prognoza_stop_zwr@forecast$seriesFor,Wariancja_Stopy_Zwrotu=prognoza_stop_zwr@forecast$sigmaFor)
+colnames(prognozy_stop_zwr) <- c("Prognoza_Stopy_Zwrotu", "Wariancja_Stopy_Zwrotu")
 
 # Prognoza logarytmicznych cen
 prognoza_log_cena <- ugarchforecast(fit2, n.ahead = 4)
-prognoza_log_cena <- as.data.frame(fitted(prognoza_log_cena))
-colnames(prognoza_log_cena) <- c("Prognoza_Log_Cena")
+prognoza_log_cena <- data.frame(Prognoza_Log_Cena=prognoza_log_cena@forecast$seriesFor,Wariancja_Log=prognoza_log_cena@forecast$sigmaFor)
+colnames(prognoza_log_cena) <- c("Prognoza_Log_Cena","Wariancja_Log")
 
 predictions_pkt6 <- data.frame(
   Zamkniecie_pred = NA,
@@ -442,47 +438,34 @@ predictions_pkt6 <- data.frame(
 )
 
 for (i in 1:4){
-  mi <- predictions_pkt6[i,"Zamkniecie_log_pred"]
-  
-  temp_df <- as.data.frame(c(train$Zamkniecie_log, predictions_pkt6$Zamkniecie_log[1:i]))
-  colnames(temp_df) <- c("Zamkniecie_log_combined")
-  
-  # Odchylenie standardowe
-  sd <- sd(temp_df$Zamkniecie_log_combined)
+  mu <- predictions_pkt6[i,"Zamkniecie_log_pred"]
+  sigma2 <- prognoza_log_cena[i, "Wariancja_Log"]
+  sigma <- sqrt(sigma2)
   
   # Prognozowana cena
-  predictions_pkt6[i,"Zamkniecie_pred"] <- exp(mi+sd/2)
+  predictions_pkt6[i,"Zamkniecie_pred"] <- exp(mu+0.5*sigma2)
   
-  # Obliczanie przedziałów ufności dla logarytmicznych cen
   z_value <- qnorm(0.975)
-  predictions_pkt6[i, "Lower_log_cena"] <- mi - z_value * (sd / sqrt(nrow(temp_df)))
-  predictions_pkt6[i, "Upper_log_cena"] <- mi + z_value * (sd / sqrt(nrow(temp_df)))
-  
+  # Obliczanie przedziałów ufności dla logarytmicznych cen
+  predictions_pkt6[i, "Lower_log_cena"] <- mu - z_value * sqrt(sigma2)
+  predictions_pkt6[i, "Upper_log_cena"] <- mu + z_value * sqrt(sigma2)
   
   # Obliczanie przedziałów ufności dla cen
-  mi_2 <- predictions_pkt6[i,"Zamkniecie_pred"]
-  temp_df_2 <- as.data.frame(c(train$Zamkniecie, predictions_pkt6$Zamkniecie_pred[1:i]))
-  colnames(temp_df_2) <- c("Zamkniecie_combined")
-
-  sd_2 <- sd(temp_df_2$Zamkniecie_combined)
-  
-  predictions_pkt6[i, "Lower_cena"] <- mi_2 - z_value * (sd_2 / sqrt(nrow(temp_df_2)))
-  predictions_pkt6[i, "Upper_cena"] <- mi_2 + z_value * (sd_2 / sqrt(nrow(temp_df_2)))
-  
+  predictions_pkt6[i, "Lower_cena"] <- exp(mu - z_value * sigma + 0.5 * sigma2)
+  predictions_pkt6[i, "Upper_cena"] <- exp(mu + z_value * sigma + 0.5 * sigma2)
   
   # Obliczanie przedziałów ufności dla logarytmicznych stóp zwrotu
-  mi_3 <- predictions_pkt6[i,"Stopa_zwrotu_log_pred"]
-  temp_df_3 <- as.data.frame(c(train$Stopa_zwrotu_log, predictions_pkt6$Stopa_zwrotu_log_pred[1:i]))
-  colnames(temp_df_3) <- c("Stopa_zwrotu_combined")
-
-  sd_3 <- sd(temp_df_3$Stopa_zwrotu_combined)
+  mu_2 <- predictions_pkt6[i,"Stopa_zwrotu_log_pred"]
+  s2 <- prognozy_stop_zwr[i, "Wariancja_Stopy_Zwrotu"]
   
-  predictions_pkt6[i, "Lower_st_zw"] <- mi_3 - z_value * (sd_3 / sqrt(nrow(temp_df_3)))
-  predictions_pkt6[i, "Upper_st_zw"] <- mi_3 + z_value * (sd_3 / sqrt(nrow(temp_df_3)))
+  predictions_pkt6[i, "Lower_st_zw"] <- mu_2 - z_value * sqrt(s2)
+  predictions_pkt6[i, "Upper_st_zw"] <- mu_2 + z_value * sqrt(s2)
 }
 
 paged_table(predictions_pkt6)
 ```
+
+2. Porównanie rzeczywistych wartości z predykcjami:
 
 ```{r}
 # Porównanie rzeczywistych wartości z predykcjami
@@ -493,8 +476,13 @@ colnames(result_df_pkt6) <- c("Zamkniecie","Zamkniecie_pred","Zamkniecie_log","Z
 paged_table(result_df_pkt6)
 ```
 
+Wartości w kolumnach 'Zamknięcie' i 'Zamknięcie_pred' (ceny zwykłe) są do siebie zbliżone. Jedynie predykcja T+2 różni się prawie o 0.2. Pozostałe predykcje nie przekraczają 0.1.
+Podobnie, wartości w kolumnach 'Zamknięcie_log' i 'Zamknięcie_log_pred' (logarytmiczne ceny) są bardzo zbliżone, co wskazuje, że model dość dobrze odwzorowuje rzeczywiste wartości.
+Z kolei wartości rzeczywiste ('Stopa_zwrotu_log') i prognozowane ('Stopa_zwrotu_log_pred') różnią się bardziej znacząco niż w poprzednich przypadkach. Model przewiduje jednakową wartość logarytmicznej stopy zwrotu w trzech ostatnich predykcjach, gdzie przewidywana wartość wynosi 0.0004695031. Widać również, że przewidywane wartości zmieniają się zarówno dodatnio, jak i ujemnie.
+
 
 #### Badanie z pkt. 4 - Monte Carlo
+
 ```{r}
 reszty_fit2 <- residuals(fit2)
 mu <- 0
@@ -541,12 +529,14 @@ ceny_results <- data.frame(
 )
 ```
 
-#### Prognozy logarytmów cen
+1. Prognozy logarytmów cen:
+
 ```{r}
 paged_table(log_ceny_results)
 ```
 
-#### Prognozy cen
+2. Prognozy cen
+
 ```{r}
 paged_table(ceny_results)
 ```
@@ -570,7 +560,8 @@ for (j in 1:n_bootstrap) {
   }
 }
 
-prognozy_ceny_bootstrap <- exp(prognozy_log_bootstrap)
+sigma <- sd(reszty_fit2)
+prognozy_ceny_bootstrap <- exp(prognozy_log_bootstrap  + (sigma^2 / 2))
 
 log_forecast_mean_bootstrap <- apply(prognozy_log_bootstrap, 2, mean)
 log_ci_lower_bootstrap <- apply(prognozy_log_bootstrap, 2, function(x) quantile(x, probs = 0.025))
@@ -595,17 +586,57 @@ ceny_bootstrap_results <- data.frame(
 )
 ```
 
-#### Prognozy logarytmów cen
+1. Bootstrapowe prognozy logarytmów cen
+
 ```{r}
 paged_table(log_ceny_bootstrap_results)
 ```
 
-#### Prognozy cen
+2. Bootstrapowe prognozy cen
+
 ```{r}
 paged_table(ceny_bootstrap_results)
 ```
 
+#### Porównanie wyników z poprzednimi prognozami logarytmicznych cen i cen
+
+1. Porównanie logarytmicznych cen
+
+```{r}
+final_comparison_log_ceny <- as.data.frame(cbind(
+  test$Zamkniecie_log, 
+  predictions_pkt6$Zamkniecie_log_pred,
+  log_ceny_results$Srednia_Log_Ceny,
+  log_ceny_bootstrap_results$Srednia_Log_Ceny
+  ))
+
+colnames(final_comparison_log_ceny) <- c("Rzeczywiste_ceny_log","Ceny_log_pred_3","Ceny_log_pred_4","Ceny_log_pred_5")
+
+paged_table(final_comparison_log_ceny)
+```
+
+Wartości prognozowane są bliskie rzeczywistym wartościom logarytmicznym cen, jednakże każda z prognoz (3, 4, 5) wykazuje pewne odchylenia w stosunku do rzeczywistych cen. 'Ceny_log_pred_3' wydaje się najbliższa rzeczywistej wartości dla pierwszej predykcji, gdzie różnica wynosi około 0.003. Jednakże w kolejnych wierszach te różnice się zwiększają. 'Ceny_log_pred_4' i 'Ceny_log_pred_5' są mniej oddalone od rzeczywistych cen logarytmicznych. Jedynie w pierwszej prognozie różnice są gorsze niż w kolumnie 'Ceny_log_pred_3'.
+
+Podsumowując, prognozy wyznaczone za pomocą metody Monte Carlo - 'Ceny_log_pred_4', wydają się być najbliższe rzeczywistości. Niemniej jednak, różnice są na tyle małe, że wszystkie trzy poziomy prognoz mają podobną jakość przewidywania.
+
+
+2. Porównanie cen
+
+```{r}
+final_comparison_ceny <- as.data.frame(cbind(
+  test$Zamkniecie, 
+  predictions_pkt6$Zamkniecie_pred,
+  ceny_results$Srednia_Ceny,
+  ceny_bootstrap_results$Srednia_Ceny
+  ))
+
+colnames(final_comparison_ceny) <- c("Rzeczywiste_ceny","Ceny_pred_3","Ceny_pred_4","Ceny_pred_5")
+
+paged_table(final_comparison_ceny)
+```
+Model prognozy 'Ceny_pred_4' wydaje się być najbardziej zbliżony w odniesieniu do rzeczywistych cen. Niemniej jedank, przewidywane wartości w dalszym ciągu nie są w pełni zadowalające. 'Ceny_pred_3' są bliskie rzeczywistym wartościom, ale widoczna jest tendencja do zawyżania prognoz. 'Ceny_pred_5' są podobne do prognoz 'Ceny_pred_4'. Są w miarę zbliżone do rzeczywistych wartości. Jedynie druga predykcja odbiega od rzeczywistej wartości o ok. 0.12, natomiast pozostałe oscylują w granicach błędu 0.008-0.04.
 
 
 Źródła:
 https://www.investopedia.com/terms/m/montecarlosimulation.asp
+https://strefainwestorow.pl/notowania/spolki/PLBTCOM00016
