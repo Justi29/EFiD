@@ -19,11 +19,17 @@ library(rugarch)
 
 ## Opis badania
 
+Celem badania jest  wyznaczenie i porównanie prognoz cen oraz stóp zwrotu z uwzględnieniem różnych metod statystycznych.
+
+W tym celu obliczono logarytmy cen i logarytmicznych stóp zwrotu, zbadano stacjonarność, dopasowano model do stóp zwrotu a następnie wysznaczono prognozy, stosując symulacje Monte Carlo oraz bootstrap.
+Na końcu przeprowadzono badanie ponownie, uwzględniając występowanie efektu ARCH. 
+
+W badaniu wykorzystano dane spółki BETACOM, ktróra została wybrana samodzielnie z ostatnich 20 spółek znajdujących się w rankingu WIG, gdyż po zostosowaniu wzoru z polecenia, numer ten nie występował już w rankingu. 
+
 
 ## BETACOM 
-Dane wykorzystane w projekcie zostały pobrane ze strony *stooq.pl*. Obserwacje dotyczą spółki BETACOM, która działa w branży IT, tworząc oprogramowanie na zamówinie oraz integrując systemy informatyczne.
-Dane pochodzą z okresu od 1 od 1 września 2023 do 4 października 2024.
-Spółka została wybrana w sposób losowy, gdyż 
+Dane wykorzystane w projekcie zostały pobrane ze strony *stooq.pl*. Obserwacje dotyczą spółki BETACOM, która działa w branży IT, tworząc oprogramowanie na zamówienie oraz integrując systemy informatyczne.
+Dane pochodzą z okresu od 1 września 2023 do 4 października 2024 i zawierają 276 obserwacji, gdzie dla każdej z nich odnotowane są wartości cen otwarcia, zamknięcia, najwyżjesz, najniższej oraz wolumenu.
 
 ```{r}
 dane <- read.csv2("bcm_d.csv", sep = ",", dec = ".", header = T)
@@ -52,14 +58,20 @@ paged_table(new_df)
 ```
 
 ### Podział danych na treningowe i testowe
-opis
+Zgodnie z poleceniem zbiór danych został podzielony na dane treningowe, do końca września 2024 oraz testowe, za które odpowiadały dni 1-4 października 2024. 
 ```{r}
 train <- new_df[-((nrow(new_df)-3):nrow(new_df)), ]
 test <-  tail(new_df, 4)
+
+liczba_treningowych <- nrow(train)
+liczba_testowych <- nrow(test)
+
+procent_treningowych <- round((liczba_treningowych / N),3) * 100
+procent_testowych <- round((liczba_testowych / N),3) * 100
+
+cat("Procent zbioru treningowego:", procent_treningowych, "%\n")
+cat("Procent zbioru testowego:", procent_testowych, "%\n")
 ```
-procentowe/liczbowe przedstawienie
-
-
 ## 1. Test ADF - badanie stacjonarności szeregów
 H0: szereg jest niestacjonarny
 H1: szereg jest stacjonarny
@@ -80,6 +92,8 @@ model
 ```
 Najlepszy model dla logarytmicznych stóp zwrotu  - ARIMA(0,0,1)
 Interpretacja ARMA(0,1):
+Model nie wykorzystuje przeszłych wartości szeregów czasowych do prognozowania przyszłych wartości, gdyż nie zawiera komponentu autoregresyjnego AR(0,1).
+Bieżąca wartość szeregu czasowego jest kombinacją obecnego błędu prognozy oraz wcześniejszego błędu prognozy.
 
 
 ### Badanie autokorelacji składników losowych
@@ -91,7 +105,7 @@ reszty <- model$residuals
 # autokorelacja
 Acf(reszty, main="ACF - Stopy zwrotu log")
 ```
-Opis
+Na wykresie nie jest widoczne aby poszczególne wartości wykraczały poza progi, co oznacza że nie występuje autokorelacja. 
 
 #### Test Ljung-Boxa
 H0: Brak autokorelacji
@@ -101,7 +115,7 @@ H1: Występuje autokorelacja
 Box.test(reszty, lag = 1, type = "Ljung-Box")$p.value
 # 0.8797915 > 0.05 brak autokorelacji
 ```
-Opis
+Ten sam wniosek wynika również z przeprowadzonego testu Ljunga-Boxa, wartość p-value jest większa od wartości krytycznej 0.05, co oznacza odrzucenie hipotezy zerowej na rzecz hipotezy alternatynwej, mówiącej o tym że nie występuje autokorelacja.  
 
 
 ### Badanie istotności parametrów przy najwyższych opóźnieniach 
@@ -614,6 +628,10 @@ paged_table(log_ceny_bootstrap_results)
 ```{r}
 paged_table(ceny_bootstrap_results)
 ```
+
+W wyniku wyznaczonych prognoz logarytmów cen i samych cen za pomocą metod bootstrapowych uzyskano wyniki zbliżone do tych, obliczonych w punktach 3 oraz 4, w szczególności wartości prognozy logarytmów cen z tego sposobu są bardzo zbliżone do logarytmów cen uzyskanych metodą Monte Carlo. 
+Również w przypadku prognoz cen, w przypadku największych różnic wyniki różnią się o wartość 0.2 .
+
 
 #### Porównanie wyników z poprzednimi prognozami logarytmicznych cen i cen
 
