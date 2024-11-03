@@ -60,6 +60,8 @@ paged_table(new_df)
 ### Podział danych na treningowe i testowe
 Zgodnie z poleceniem zbiór danych został podzielony na dane treningowe, do końca września 2024 oraz testowe, za które odpowiadały dni 1-4 października 2024. 
 ```{r}
+N <- nrow(new_df) 
+
 train <- new_df[-((nrow(new_df)-3):nrow(new_df)), ]
 test <-  tail(new_df, 4)
 
