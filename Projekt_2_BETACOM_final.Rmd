@@ -78,6 +78,7 @@ model
 Najlepszy model dla logarytmicznych stóp zwrotu  - ARIMA(0,0,1)
 Interpretacja ARMA(0,1):
 
+
 ### Badanie autokorelacji składników losowych
 #### Wykres ACF
 ```{r}
@@ -100,11 +101,11 @@ Box.test(reszty, lag = 1, type = "Ljung-Box")$p.value
 Opis
 
 
-### Badanie istotności parametrów przy najwyższych opóźnieniach
+### Badanie istotności parametrów przy najwyższych opóźnieniach 
 ```{r}
 coeftest(model)
 ```
-Opis (u nas 1 opoznienie)
+Parametr średniej ruchomej MA(1) w modelu ARIMA(0,0,1) jest istotny na poziomie 5%, więc w modelu uwzględniamy jedno opóźnienie.
 
 ### Badanie białego szumu
 Aby reszty były białym szumem, muszą spełniać następujące warunki:
@@ -172,6 +173,7 @@ comparison <- data.frame(
 
 paged_table(comparison)
 ```
+
 
 #### Predykcje logarytmicznych cen
 ```{r}
