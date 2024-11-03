@@ -21,7 +21,8 @@ library(rugarch)
 
 Celem badania jest  wyznaczenie i porównanie prognoz cen oraz stóp zwrotu z uwzględnieniem różnych metod statystycznych.
 
-W tym celu obliczono logarytmy cen i logarytmicznych stóp zwrotu, zbadano stacjonarność, dopasowano model do stóp zwrotu a następnie wysznaczono prognozy, stosując symulacje Monte Carlo oraz bootstrap. Na końcu przeprowadzono badanie ponownie, uwzględniając występowanie efektu ARCH. 
+W tym celu obliczono logarytmy cen i logarytmicznych stóp zwrotu, zbadano stacjonarność, dopasowano model do stóp zwrotu a następnie wysznaczono prognozy, stosując symulacje Monte Carlo oraz bootstrap.
+Na końcu przeprowadzono badanie ponownie, uwzględniając występowanie efektu ARCH. 
 
 W badaniu wykorzystano dane spółki BETACOM, ktróra została wybrana samodzielnie z ostatnich 20 spółek znajdujących się w rankingu WIG, gdyż po zostosowaniu wzoru z polecenia, numer ten nie występował już w rankingu. 
 
@@ -610,6 +611,10 @@ paged_table(log_ceny_bootstrap_results)
 ```{r}
 paged_table(ceny_bootstrap_results)
 ```
+
+W wyniku wyznaczonych prognoz logarytmów cen i samych cen za pomocą metod bootstrapowych uzyskano wyniki zbliżone do tych, obliczonych w punktach 3 oraz 4, w szczególności wartości prognozy logarytmów cen z tego sposobu są bardzo zbliżone do logarytmów cen uzyskanych metodą Monte Carlo. 
+Również w przypadku prognoz cen, w przypadku największych różnic wyniki różnią się o wartość 0.2 .
+
 
 #### Porównanie wyników z poprzednimi prognozami logarytmicznych cen i cen
 
