@@ -209,6 +209,16 @@ comparison_2 <- data.frame(
 
 paged_table(comparison_2)
 ```
+W obliczeniach do prognozowanania cen wykorzystano wzór na wartość oczekiwaną dla rozkładu log-normalnego:
+
+$$
+\text{Wartość oczekiwana} = e^{\mu + \sigma^2 / 2}
+$$
+
+Gdzie:
+- $\mu$ to prognozowana logarytmiczna wartość ceny,
+- $\sigma$ to odchylenie standardowe logarytmicznych cen.
+
 
 #### Predykcja cen. Zestawienie wszystkich predykcji wraz z przedziałami ufności
 ```{r}
