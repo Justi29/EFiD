@@ -24,7 +24,7 @@ Celem badania jest  wyznaczenie i porównanie prognoz cen oraz stóp zwrotu z uw
 W tym celu obliczono logarytmy cen i logarytmicznych stóp zwrotu, zbadano stacjonarność, dopasowano model do stóp zwrotu a następnie wysznaczono prognozy, stosując symulacje Monte Carlo oraz bootstrap.
 Na końcu przeprowadzono badanie ponownie, uwzględniając występowanie efektu ARCH. 
 
-W badaniu wykorzystano dane spółki BETACOM, ktróra została wybrana samodzielnie z ostatnich 20 spółek znajdujących się w rankingu WIG, gdyż po zostosowaniu wzoru z polecenia, numer ten nie występował już w rankingu. 
+W badaniu wykorzystano dane spółki BETACOM, która została wybrana samodzielnie z ostatnich 20 spółek znajdujących się w rankingu WIG, gdyż po zostosowaniu wzoru z polecenia, numer ten nie występował już w rankingu. 
 
 
 ## BETACOM 
@@ -263,9 +263,7 @@ for (i in 1:4){
 
 paged_table(predictions)
 ```
-Prognozy modelu logarytmicznych stóp zwrotu są bliskie zera. Rzeczywiste wartości wykazują większą zmienność, ale mieszczą się w szerokich przedziałach ufności. Szerokie przedziały ufności wskazują na dużą niepewność prognoz. 
-Prognozy modelu logarytmicznych cen są zbliżone do wartości 1.48 dla każdej obserwacji. Rzeczywiste wartości wykazują większą zmienność, ale wszystkie mieszczą się w szerokich przedziałach ufności.
-Prognozy dla cen zamknięcia są stabilne i zbliżone do wartości 4.418 dla każdej obserwacji, z szerokimi przedziałami ufności, co wskazuje na znaczną niepewność prognoz.
+Prognozy modelu logarytmicznych stóp zwrotu są bliskie zera, natomiast dla logarytmicznych cen oscylują wokół 1.48 dla każdej obserwacji. Rzeczywiste wartości w obu przypadkach cechują się większą zmiennością, lecz nadal mieszczą się w szerokich przedziałach ufności, co świadczy o niepewności przewidywań. Prognozy cen zamknięcia pozostają stabilne, zbliżone do 4.418, jednak szerokie przedziały ufności wskazują na trudności w precyzyjnym prognozowaniu tych wartości.
 
 
 #### Porównanie rzeczywistych wartości z predykcjami
