@@ -94,6 +94,7 @@ Interpretacja ARMA(0,1):
 Model nie wykorzystuje przeszłych wartości szeregów czasowych do prognozowania przyszłych wartości, gdyż nie zawiera komponentu autoregresyjnego AR(0,1).
 Bieżąca wartość szeregu czasowego jest kombinacją obecnego błędu prognozy oraz wcześniejszego błędu prognozy.
 
+
 ### Badanie autokorelacji składników losowych
 #### Wykres ACF
 ```{r}
@@ -116,11 +117,11 @@ Box.test(reszty, lag = 1, type = "Ljung-Box")$p.value
 Ten sam wniosek wynika również z przeprowadzonego testu Ljunga-Boxa, wartość p-value jest większa od wartości krytycznej 0.05, co oznacza odrzucenie hipotezy zerowej na rzecz hipotezy alternatynwej, mówiącej o tym że nie występuje autokorelacja.  
 
 
-### Badanie istotności parametrów przy najwyższych opóźnieniach
+### Badanie istotności parametrów przy najwyższych opóźnieniach 
 ```{r}
 coeftest(model)
 ```
-Opis (u nas 1 opoznienie)
+Parametr średniej ruchomej MA(1) w modelu ARIMA(0,0,1) jest istotny na poziomie 5%, więc w modelu uwzględniamy jedno opóźnienie.
 
 ### Badanie białego szumu
 Aby reszty były białym szumem, muszą spełniać następujące warunki:
@@ -188,6 +189,7 @@ comparison <- data.frame(
 
 paged_table(comparison)
 ```
+
 
 #### Predykcje logarytmicznych cen
 ```{r}
