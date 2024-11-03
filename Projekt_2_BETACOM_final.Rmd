@@ -18,9 +18,12 @@ library(rugarch)
 ```
 
 ## Opis badania
-Dane ze stooq, nie bylo naszego numerku spolki, dlatego wzielysmy z ostatnich 20 spolek.
 
-## Dane BETACOM od 1 września 2023 do 4 października 2024
+
+## BETACOM 
+Dane wykorzystane w projekcie zostały pobrane ze strony *stooq.pl*. Obserwacje dotyczą spółki BETACOM, która działa w branży IT, tworząc oprogramowanie na zamówinie oraz integrując systemy informatyczne.
+Dane pochodzą z okresu od 1 od 1 września 2023 do 4 października 2024.
+Spółka została wybrana w sposób losowy, gdyż 
 
 ```{r}
 dane <- read.csv2("bcm_d.csv", sep = ",", dec = ".", header = T)
@@ -634,3 +637,4 @@ Model prognozy 'Ceny_pred_4' wydaje się być najbardziej zbliżony w odniesieni
 
 Źródła:
 https://www.investopedia.com/terms/m/montecarlosimulation.asp
+https://strefainwestorow.pl/notowania/spolki/PLBTCOM00016
