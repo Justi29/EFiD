@@ -7,7 +7,7 @@ output:
     code_folding: hide
   pdf_document: default
 ---
-test
+
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 library(rmarkdown)
 library(tseries)
@@ -177,7 +177,6 @@ comparison <- data.frame(
 paged_table(comparison)
 ```
 
-
 #### Predykcje logarytmicznych cen
 ```{r}
 forecast_values <- forecast(ceny_log_model, h=4)
@@ -237,6 +236,10 @@ for (i in 1:4){
 
 paged_table(predictions)
 ```
+Prognozy modelu logarytmicznych stóp zwrotu są bliskie zera. Rzeczywiste wartości wykazują większą zmienność, ale mieszczą się w szerokich przedziałach ufności. Szerokie przedziały ufności wskazują na dużą niepewność prognoz. 
+Prognozy modelu logarytmicznych cen są zbliżone do wartości 1.48 dla każdej obserwacji. Rzeczywiste wartości wykazują większą zmienność, ale wszystkie mieszczą się w szerokich przedziałach ufności.
+Prognozy dla cen zamknięcia są stabilne i zbliżone do wartości 4.418 dla każdej obserwacji, z szerokimi przedziałami ufności, co wskazuje na znaczną niepewność prognoz.
+
 
 #### Porównanie rzeczywistych wartości z predykcjami
 ```{r}
@@ -246,7 +249,9 @@ colnames(result_df) <- c("Zamkniecie","Zamkniecie_pred","Zamkniecie_log","Zamkni
 
 paged_table(result_df)
 ```
+Model prognozuje ceny zamknięcia oraz logarytmiczne ceny z wynikami zbliżonymi do rzeczywistych, ale występują pewne różnice. Prognozowane ceny zamknięcia (ok. 4.418) są stabilne, podczas gdy rzeczywiste ceny są bardziej zróżnicowane (od 4.30 do 4.44). Podobnie, prognozy logarytmicznych cen są stałe (1.47966) i nie odzwierciedlają w pełni zmienności rzeczywistych wartości (od 1.459 do 1.491).
 
+Prognozowane logarytmiczne stopy zwrotu są bliskie zeru, co sugeruje, że model przewiduje niewielką zmienność. Jednak rzeczywiste stopy zwrotu wykazują większe odchylenia (od -0.032 do 0.023). 
 
 ## 4. Monte Carlo
 Na podstawie rozkładu reszt modelu dopasowanego w pkt.2. symulacyjnie (za pomocą metody Monte Carlo) wyznaczyć prognozy logarytmów cen i samych cen aż do 4 notowań. Na tej podstawie wyznaczyć także 95% przedziały ufności dla wartości logarytmów cen i samych cen. Uzyskane w ten sposób wyniki porównać z prognozami z punktu 3. 
@@ -308,6 +313,18 @@ paged_table(ceny_results)
 ```
 
 Opis - porównanie z 3
+```{r}
+final_comparison_cen4 <- as.data.frame(cbind(
+  test$Zamkniecie, 
+  predictions_pkt6$Zamkniecie_pred,
+  ceny_results$Srednia_Ceny,
+  log_ceny_results$Srednia_Ceny
+  ))
+
+colnames(final_comparison_ceny) <- c("Rzeczywiste_ceny","Ceny_pred_3","Ceny_pred_4","Ceny_pred_5")
+
+paged_table(final_comparison_ceny)
+```
 
 ## 5. Metody bootstrapowe
 Na podstawie oszacowanych reszt, za pomocą metod bootstrapowych wyznaczyć prognozy logarytmów cen i samych cen aż do 4 sesji. Wyznaczyć także 95% przedziały ufności dla wartości logarytmów cen i samych cen. Uzyskane w ten sposób wyniki porównać z prognozami z punktu 3 i 4.
