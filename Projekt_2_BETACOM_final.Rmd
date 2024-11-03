@@ -274,14 +274,10 @@ colnames(result_df) <- c("Zamkniecie","Zamkniecie_pred","Zamkniecie_log","Zamkni
 
 paged_table(result_df)
 ```
-Model prognozuje ceny zamknięcia oraz logarytmiczne ceny z wynikami zbliżonymi do rzeczywistych, ale występują pewne różnice. Prognozowane ceny zamknięcia (ok. 4.418) są stabilne, podczas gdy rzeczywiste ceny są bardziej zróżnicowane (od 4.30 do 4.44). Podobnie, prognozy logarytmicznych cen są stałe (1.47966) i nie odzwierciedlają w pełni zmienności rzeczywistych wartości (od 1.459 do 1.491).
-
-Prognozowane logarytmiczne stopy zwrotu są bliskie zeru, co sugeruje, że model przewiduje niewielką zmienność. Jednak rzeczywiste stopy zwrotu wykazują większe odchylenia (od -0.032 do 0.023). 
+Model prognozuje ceny zamknięcia oraz logarytmiczne ceny z wynikami zbliżonymi do rzeczywistych, ale występują pewne różnice. Prognozowane ceny zamknięcia (ok. 4.418) są stabilne, podczas gdy rzeczywiste ceny są bardziej zróżnicowane (od 4.30 do 4.44). Podobnie, prognozy logarytmicznych cen są stałe (1.47966) i nie odzwierciedlają w pełni zmienności rzeczywistych wartości (od 1.459 do 1.491). Natomiast, prognozowane logarytmiczne stopy zwrotu są bliskie zeru, co sugeruje, że model przewiduje niewielką zmienność. Jednak rzeczywiste stopy zwrotu wykazują większe odchylenia (od -0.032 do 0.023). 
 
 ## 4. Monte Carlo
-Na podstawie rozkładu reszt modelu dopasowanego w pkt.2. symulacyjnie (za pomocą metody Monte Carlo) wyznaczyć prognozy logarytmów cen i samych cen aż do 4 notowań. Na tej podstawie wyznaczyć także 95% przedziały ufności dla wartości logarytmów cen i samych cen. Uzyskane w ten sposób wyniki porównać z prognozami z punktu 3.
-
-Kolejnym etapem projektu było zastosowanie metody Monte Carlo do prognozowania logarytmów cen oraz rzeczywistych cen na kolejne cztery notowania, opierając się na rozkładzie reszt modelu dopasowanego w punkcie 2. Przyjęto, że logarytmiczne stopy zwrotu mają rozkład normalny, co oznacza, że logarytmiczne ceny mają warunkowy rozkład normalny, a rzeczywiste ceny rozkład logarytmicznie normalny. Na podstawie tych symulacji wyznaczono 95% przedziały ufności dla prognozowanych wartości
+Kolejnym etapem projektu było zastosowanie metody Monte Carlo do prognozowania logarytmów cen oraz samych cen na kolejne cztery notowania, opierając się na rozkładzie reszt modelu dopasowanego w punkcie 2. Przyjęto, że logarytmiczne stopy zwrotu mają rozkład normalny, co oznacza, że logarytmiczne ceny mają warunkowy rozkład normalny, a rzeczywiste ceny rozkład logarytmicznie normalny. Na podstawie tych symulacji wyznaczono 95% przedziały ufności dla prognozowanych wartości.
 
 ```{r}
 reszty_2 <- residuals(ceny_log_model)
@@ -339,10 +335,11 @@ paged_table(log_ceny_results)
 ```{r}
 paged_table(ceny_results)
 ```
+Wyniki symulacji metodą Monte Carlo wskazują, że:
+-prognozy logarytmicznych cen są stosunkowo stabilne i oscylują wokół wartości 1.481. Przedziały ufności poszerzają się wraz ze wzrostem horyzontu prognozy, co oznacza większą niepewność w dłuższym okresie,
+-prognozy zwykłych cen również wykazują stabilność, utrzymując się w przedziale 4.403-4.408, co sugeruje, że model zakłada minimalne zmiany cen w krótkim okresie.
 
-Wyniki symulacji popprzez użycie Monte Carlo przedstawiają prognozy logarytmicznych cen na cztery kolejne notowania wskazuje na stosunkowo stabilne prognozy, które oscylują wokół wartości zbliżonej do 1.481. Przedziały ufności rosną wraz z horyzontem prognozy, co wskazuje na zwiększającą się niepewność w dalszych prognozach. Prognozowane zwykłe ceny są stabilne i oscylują wokół wartości 4.403-4.408. To sugeruje, że model przewiduje niewielkie zmiany w cenach w krótkim okresie.
-
-#Porównanie z pkt.3
+#Porównanie z prognozami z pkt.3
 ```{r}
 result_df2 <- as.data.frame(cbind(
 test$Zamkniecie,  
@@ -351,17 +348,14 @@ predictions$Zamkniecie_pred,
 test$Zamkniecie_log, 
 log_ceny_results$Srednia_Log_Ceny,
 predictions$Zamkniecie_log
-#test$Stopa_zwrotu_log, 
-#predictions$Stopa_zwrotu_log_pred
 ))
 
 colnames(result_df2) <- c("Zamkniecie","Zamkniecie_ceny_MonteCarlo", "Zamkniecie_pred","Zamkniecie_log","Zamkniecie_log_MonteCarlo","Zamkniecie_log_pred")
-#"Stopa_zwrotu_log","Stopa_zwrotu_log_pred"
 
 paged_table(result_df2)
 
 ```
-Rzeczywiste ceny zamknięcia oscylują od 4.30 do 4.44. Prognozy przy zastosowaniu Monte Carlo są zbliżone do rzeczywistych cen zamknięcia. Prognozowane ceny zamknięcie prognozy również są zbliżone do rzeczywistych wartości, choć odrobinę wyższe niż prognozy Monte Carlo.  Rzeczywiste logarytmy cen (od 1.459 do 1.491) wykazują pewną zmienność, ale prognozy logarytmów metodą Monte Carlo (od 1.481 do 1.482) i inne prognozy logarytmów (1.47966) są dość stabilne. Jednak modele te mają tendencję do przewidywania mniejszej zmienności niż ta, która występuje w rzeczywistości, co skutkuje stabilnymi prognozami logarytmów i nieznacznie wyższymi wartościami prognozowanych cen zamknięcia.
+Rzeczywiste ceny zamknięcia mieszczą się w przedziale od 4.30 do 4.44. Prognozy zwykłych cen uzyskane metodą Monte Carlo są do nich zbliżone. Prognozowane zwykłe ceny z pkt.3 również są zbliżone do rzeczywistych wartości, choć odrobinę wyższe niż te uzyskane za pomocą metody Monte Carlo.  Rzeczywiste logarytmy cen wahają się w przedziale od 1.459 do 1.491 i wykazują pewną zmienność, podczas gdy prognozy logarytmów uzyskane metodą Monte Carlo mieszczą się w zakresie od 1.481 do 1.482, a prognozy z punktu 3 wynoszą 1.47966, co wskazuje na ich stabilność. Modele te mają jednak tendencję do przewidywania mniejszej zmienności niż rzeczywista, co prowadzi do stabilnych prognoz logarytmów i nieco wyższych prognozowanych cen zamknięcia.
 
 ## 5. Metody bootstrapowe
 Na podstawie oszacowanych reszt, za pomocą metod bootstrapowych wyznaczyć prognozy logarytmów cen i samych cen aż do 4 sesji. Wyznaczyć także 95% przedziały ufności dla wartości logarytmów cen i samych cen. Uzyskane w ten sposób wyniki porównać z prognozami z punktu 3 i 4.
