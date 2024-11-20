@@ -1,0 +1,229 @@
+### Wersja F
+Za pomocą odpowiednich symulacji zbadać własności estymatorów parametrów modelu GARCH(1,1) w przypadku błędnej specyfikacji rozkładu składnika losowego, tzn. np. generować dane ze składnikami losowymi z rozkładu t-Studenta z grubymi ogonami, a estymować parametry przy założeniu normalności składników losowych.
+
+Procedura symulacji może wyglądać następująco
+
+0. Ustalić długość danych 𝑁.
+1. Dla ustalonych parametrów wygenerować 𝑁 wartości z modelu GARCH(1,1) ze
+składnikami losowymi o rozkładzie np. 𝑡-Studenta.
+2. Na podstawie wygenerowanych danych dopasować model GARCH(1,1) zakładając, że
+składniki losowe mają warunkowy rozkład normalny. Zbadać normalność
+zestandaryzowanych reszt modelu.
+3. Zapamiętać wartości oszacowań parametrów modelu GARCH, ich odchyleń standardowych.
+4. Kroki 1-3 powtórzyć 1000 razy.
+5. Na podstawie uzyskanych wartości zbadać wpływ błędnej specyfikacji warunkowego
+rozkładu składników losowych modelu na własności estymatorów parametrów modelu, tzn. na ich rozkład, czy są obciążone, na wyniki testów istotności, itp. Rozważyć różne wartości 𝑁 i różne wartości parametrów generowanego modelu.
+
+Warto rozważyć np. 𝑁 = 100, 200, 1000.
+
+```{r}
+# install.packages("rugarch")
+library('rugarch')
+library(dplyr)
+```
+
+```{r}
+# Funkcja do testowania normalności rozkładu zestandaryzowanych reszt
+Shapiro_test_reszty <- function(reszty) {
+  stand_reszty <- (reszty - mean(reszty)) / sd(reszty)
+  shapiro_test <- shapiro.test(stand_reszty)
+  
+  p_value <- shapiro_test$p.value
+  result <- if (p_value < 0.05) "H1" else "H0"
+  
+  return(list(p_value = p_value, result = result))
+}
+
+# Wspólne zmienne
+n_simulations <- 1000
+N_list <- c(100, 200, 1000)
+
+# Funkcja do przeprowadzania testu t w celu zbadania obciążenia parametrów
+function_t_tests <- function(data, params) {
+  list(
+    omega = t.test(data$omega, mu = params$omega),
+    alpha1 = t.test(data$alpha1, mu = params$alpha1),
+    beta1 = t.test(data$beta1, mu = params$beta1)
+  )
+}
+```
+
+
+### Parametry zestaw 1
+```{r}
+params_1 <- list(alpha1 = 0.1, beta1 = 0.85, omega = 0.01, shape = 5)
+
+# Model Garch(1,1) o rozkładzie 𝑡-Studenta
+spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(0, 0), include.mean = FALSE),
+  distribution.model = "std", fixed.pars = params_1
+)
+
+
+for (N in N_list) {
+
+  df <- data.frame()
+  
+  for (i in 1:n_simulations) {
+    sim <- ugarchpath(spec, n.sim = 100)
+    
+    # Wyciągnięcie seriesSim
+    seriesSim<- fitted(sim)
+  
+    # Dopasowanie modelu GARCH(1,1) z normalnym rozkładem
+    spec_norm <- ugarchspec(
+      variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+      mean.model = list(armaOrder = c(0, 0), include.mean = TRUE),
+      distribution.model = "norm"
+    )
+    
+    fit <- ugarchfit(spec = spec_norm, data = seriesSim)
+    
+    coef_matrix <- fit@fit$matcoef
+    estimates <- coef_matrix[, 1]
+    std_errors <- coef_matrix[, 2]
+    
+    shapiro_results <- Shapiro_test_reszty(fit@fit$residuals)
+    
+    df <- rbind(
+        df,
+        data.frame(
+          Simulation = i,
+          omega = estimates[2],
+          stderr_omega = std_errors[2],
+          T_stat_omega = (estimates[2]-params_1$omega)/std_errors[2],
+          alpha1 = estimates[3],
+          stderr_alpha1 = std_errors[3],
+          T_stat_alpha1 = (estimates[3]-params_1$alpha1)/std_errors[3],
+          beta1 = estimates[4],
+          stderr_beta1 = std_errors[4],
+          T_stat_beta1 = (estimates[4]-params_1$beta1)/std_errors[4],
+          shapiro_p_val = shapiro_results$p_value,
+          shapiro_result = shapiro_results$result
+        )
+    )
+  }
+  assign(paste0("results_p1_N", N), df)
+}
+```
+
+```{r}
+datasets <- list(
+  list(data = results_p1_N100, N = 100),
+  list(data = results_p1_N200, N = 200),
+  list(data = results_p1_N1000, N = 1000)
+)
+```
+
+
+#### Rozkład estymatorów
+test Shapiro dla kazdego estymatora - omega, alpha1, beta1
+
+```{r}
+results_Shapiro_p1 <- data.frame(N = numeric(), omega_p = numeric(), alpha_p = numeric(), beta_p = numeric())
+
+for (dataset in datasets) {
+  omega_test <- shapiro.test(dataset$data$omega)
+  alpha_test <- shapiro.test(dataset$data$alpha1)
+  beta_test <- shapiro.test(dataset$data$beta1)
+  
+  results_Shapiro_p111 <- rbind(
+    results_Shapiro_p111,
+    data.frame(
+      N = dataset$N,
+      omega_p = omega_test$p.value,
+      alpha_p = alpha_test$p.value,
+      beta_p = beta_test$p.value
+    )
+  )
+}
+```
+
+#### Obciążenie estymatorów
+- czy estymatory sa nieobciazone, czyli czy wartosc oczekiwana estymatorow jest równa wartości a_0 parametru  uzytego do generowania danych - test t
+
+```{r}
+# Wartości p-value, statystyki t, średniej z próby
+results_t_test_p1 <- data.frame(N = numeric(), 
+                        omega_p = numeric(), omega_t = numeric(), omega_mu = numeric(),
+                        alpha1_p = numeric(), alpha1_t = numeric(), alpha1_mu = numeric(), 
+                        beta1_p = numeric(), beta1_t = numeric(), beta1_mu = numeric())
+
+
+for (dataset in datasets) {
+  t_tests <- function_t_tests(dataset$data, params_1)
+  
+  results_t_test_p1 <- rbind(
+    results_t_test_p1,
+    data.frame(
+      N = dataset$N,
+      omega_p = t_tests$omega$p.value,
+      omega_t = t_tests$omega$statistic,
+      omega_mu = t_tests$omega$estimate,
+      
+      alpha1_p = t_tests$alpha1$p.value,
+      alpha1_t = t_tests$alpha1$statistic,
+      alpha1_mu = t_tests$alpha1$estimate,
+      
+      beta1_p = t_tests$beta1$p.value,
+      beta1_t = t_tests$beta1$statistic,
+      beta1_mu = t_tests$beta1$estimate
+    )
+  )
+}
+
+head(results_t_test_p1)
+```
+
+
+#### Wyniki testów istotności
+- sprawdzic czy statystyki maja rozkl normalny;
+```{r}
+results_Shapiro_T_stat_p1 <- data.frame(N = numeric(), omega_p = numeric(), alpha_p = numeric(), beta_p = numeric())
+
+for (dataset in datasets) {
+  omega_test <- shapiro.test(dataset$data$T_stat_omega)
+  alpha_test <- shapiro.test(dataset$data$T_stat_alpha1)
+  beta_test <- shapiro.test(dataset$data$T_stat_beta1)
+  
+  results_Shapiro_T_stat_p1 <- rbind(
+    results_Shapiro_T_stat_p1,
+    data.frame(
+      N = dataset$N,
+      omega_p = omega_test$p.value,
+      alpha_p = alpha_test$p.value,
+      beta_p = beta_test$p.value
+    )
+  )
+}
+head(results_Shapiro_T_stat_p1)
+```
+
+- obliczyc wartosci statystyk w testach: H0: a = a_0, ...
+```{r}
+
+```
+
+
+
+#### Rozkład statystyk testowych
+- obliczyc odestek odrzucen hipotezy glownej w testach opisywanych przez te statystyki 
+```{r}
+
+```
+
+
+
+### Parametry zestaw 2
+
+```{r}
+params_2 <- list(alpha1 = 0.15, beta1 = 0.75, omega = 0.01, shape = 2.1)
+```
+
+
+### Parametry zestaw 3
+
+```{r}
+params_3 <- list(alpha1 = 0.12, beta1 = 0.8, omega = 0.015, shape = 3)
+```
